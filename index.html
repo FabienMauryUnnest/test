@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+	<link rel="manifest" href="/manifest.json?v=1">
+    <link rel="icon" href="/favicon-192.png">
+    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1" />
+    <meta name="theme-color" content="#EEE"/>
+    <style>
+    html,body{margin:0;padding:0;font-family:'Verdana', 'Arial', sans-serif}
+    .target {
+      display: block;
+      margin: 1rem auto;
+      width: 90%;
+      max-width: 50rem;
+      background: #FAFAFA;
+      border: 1px solid #EEE;
+      padding: 1rem 0.5rem;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+    .target a {
+    }
+    .credits a {font-size:0.65rem;color:lightgray;text-decoration:none}
+    #install {
+      background: #4A4;
+      color: white;
+      padding: 0.25rem 1rem;
+      border: 1px solid rgb(255,255,255,0.5);
+      border-radius: 0.5rem;
+      display: none;
+      margin: 0 auto;
+    }
+    #manual {
+      margin: 0 auto;
+      width: 90%;
+      max-width: 50rem;
+      padding-top: 1rem;
+      display: flex;
+    }
+    #manual input, #share {
+      font-size: 1.2rem;
+      padding: 0.15rem;
+    }
+    #manualUrl {
+      flex: 1;
+    }
+    </style>
+</head>
+<body>
+<form id="manual">
+    <input type="url" id="manualUrl" name="url" placeholder="https://vm.tiktok.com/..." required/>
+    <input type="submit" value="📲"/>
+</form>
+<p class="target">
+  <a href="./" id="shareTarget">...</a>
+  <button id="share" style="display: none">➦</button>
+</p>
+<button id="install">Install</button>
+<script>
+const RESOLVER = new URL("https://k6pv9h413b.execute-api.us-east-1.amazonaws.com/");
+const shareTarget = document.getElementById("shareTarget");
+const installButton = document.getElementById("install");
+const manual = document.getElementById("manual");
+const manualUrl = document.getElementById("manualUrl");
+const share = document.getElementById("share");
+const mainUrl = new URL(document.location);
+const shareUrl = mainUrl.searchParams.get("url");
+
+async function getRealUrl(url) {
+    shareTarget.href = "";
+    shareTarget.innerHTML = "Resolving...";
+      share.style.display = "none";
+    RESOLVER.search = new URLSearchParams({
+      url: url
+    })
+    const response = await fetch(RESOLVER);
+    return response.json();
+}
+
+function reShare(url) {
+  shareTarget.href = url;
+  shareTarget.innerHTML = url;
+  if (navigator.share) {
+    share.style.display = "inline-block";
+    navigator.share({
+        title: "Watch this TikTok",
+        url: url
+    });
+  } else {
+    console.log("Browser does not support share API");
+  }
+}
+
+function discover(form) {
+  const data = new FormData(form);
+  const url = data.get("url");
+  getRealUrl(url).then(reShare);
+}
+
+(function(){
+    if (!!shareUrl) {
+      console.log(shareUrl);
+      manualUrl.value = shareUrl;
+      discover(manual);
+    } else {
+      console.log("Started without URL");
+    }
+})();
+
+
+share.addEventListener("click", (e) => {
+    const url = shareTarget.href;
+    navigator.share({
+        title: "Watch this TikTok",
+        url: url
+    });
+});
+
+
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installButton.style.display = "block";
+});
+window.addEventListener("appinstalled", (e) => {
+  installButton.style.display = "none";
+});
+
+installButton.addEventListener("click", (e) => {
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((choice) => {
+    if (choice.outcome === "accepted") {
+      console.log("Installed")
+    }
+    deferredPrompt = null;
+  });
+});
+window.addEventListener('load', function() {
+  navigator.serviceWorker.register('/sw.js?v=0').then(function(registration) {
+    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+  }, function(err) {
+    console.log('ServiceWorker registration failed: ', err);
+  });
+});
+
+</script>
+<p class="credits"><a href="https://github.com/jjdelc/verbose-happiness">Source</a></p>
+</body>
+</html>
+
